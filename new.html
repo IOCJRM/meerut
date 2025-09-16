@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Route with En-route Markers (Hospital / School / Police)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif; }
+    #map { height: 100%; width: 100%; }
+    .legend {
+      position: absolute; z-index: 2; bottom: 16px; left: 16px;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+      padding: 10px 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); font-size: 13px;
+    }
+    .legend-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid #222; }
+    .hospital { background: #d7191c; }
+    .school   { background: #2c7bb6; }
+    .police   { background: #fdae61; }
+    .hint { color:#555; font-size:12px; margin-top:6px; }
+    .badge {
+      position:absolute; top:12px; left:12px; z-index:2; background:#fff; padding:8px 10px;
+      border:1px solid #e5e7eb; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.08); font-size:13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="badge" id="stats">Loading route…</div>
+
+  <div class="legend">
+    <div><strong>En-route Markers</strong></div>
+    <div class="legend-row"><span class="dot hospital"></span> Hospital</div>
+    <div class="legend-row"><span class="dot school"></span> School</div>
+    <div class="legend-row"><span class="dot police"></span> Police</div>
+    <div class="hint">Traffic overlay on (red = high congestion)</div>
+  </div>
+
+  <script>
+    // --- Coordinates (given by you) ---
+    const START = { lat: 28.9474,   lng: 77.6582   };
+    const END   = { lat: 28.603048, lng: 77.665354 };
+
+    // Search settings (tune if needed)
+    const SEARCH_RADIUS_M = 800;     // meters around sampled route points
+    const SAMPLE_EVERY_N = 25;       // sample every Nth polyline point to limit API calls
+    const PLACE_TYPES = [
+      { type: "hospital", title: "Hospital", color: "#d7191c" },
+      { type: "school",   title: "School",   color: "#2c7bb6" },
+      { type: "police",   title: "Police",   color: "#fdae61" },
+    ];
+
+    let map, directionsService, directionsRenderer, placesService, trafficLayer;
+    let markers = [];
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: START, zoom: 10, mapTypeControl: false, streetViewControl: false, fullscreenControl: true
+      });
+
+      trafficLayer = new google.maps.TrafficLayer();
+      trafficLayer.setMap(map);
+
+      directionsService = new google.maps.DirectionsService();
+      placesService = new google.maps.places.PlacesService(map);
+      directionsRenderer = new google.maps.DirectionsRenderer({
+        map,
+        suppressMarkers: true, // show ONLY our en-route markers as requested
+        polylineOptions: { strokeColor: "#2ecc71", strokeOpacity: 0.95, strokeWeight: 7 }
+      });
+
+      calcAndShow();
+    }
+
+    async function calcAndShow() {
+      clearMarkers();
+      document.getElementById("stats").textContent = "Calculating route…";
+
+      directionsService.route({
+        origin: START,
+        destination: END,
+        travelMode: google.maps.TravelMode.DRIVING,
+        provideRouteAlternatives: false
+      }, async (res, status) => {
+        if (status !== "OK" || !res?.routes?.[0]) {
+          document.getElementById("stats").textContent = "Route not available.";
+          return;
+        }
+
+        const route = res.routes[0];
+        directionsRenderer.setDirections(res);
+
+        // Distance + duration
+        const leg = route.legs?.[0];
+        const distanceText = leg?.distance?.text ?? "";
+        const durationText = leg?.duration?.text ?? "";
+        document.getElementById("stats").textContent = `Distance: ${distanceText}  •  ETA: ${durationText}`;
+
+        // Find en-route places along the polyline
+        const path = route.overview_path || [];
+        await showPlacesAlong(path);
+        fitAll(route, markers);
+      });
+    }
+
+    function fitAll(route, markers) {
+      const b = new google.maps.LatLngBounds();
+      (route.overview_path || []).forEach(p => b.extend(p));
+      markers.forEach(m => b.extend(m.getPosition()));
+      if (!b.isEmpty()) map.fitBounds(b);
+    }
+
+    async function showPlacesAlong(path) {
+      const samples = path.filter((_, i) => i % SAMPLE_EVERY_N === 0);
+      const seen = new Set(); // dedupe by place_id
+
+      for (const pt of samples) {
+        for (const spec of PLACE_TYPES) {
+          const found = await nearby(pt, spec.type).catch(() => []);
+          found.forEach(place => {
+            if (place.place_id && !seen.has(place.place_id)) {
+              seen.add(place.place_id);
+              addMarker(place, spec);
+            }
+          });
+        }
+      }
+    }
+
+    function nearby(location, type) {
+      return new Promise(resolve => {
+        placesService.nearbySearch(
+          { location, radius: SEARCH_RADIUS_M, type: [type] },
+          (results, status) => {
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
+              resolve([]);
+              return;
+            }
+            resolve(results.slice(0, 5)); // cap at 5 per sample
+          }
+        );
+      });
+    }
+
+    function addMarker(place, spec) {
+      const marker = new google.maps.Marker({
+        map,
+        position: place.geometry.location,
+        title: `${place.name} (${spec.title})`,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 6,
+          fillColor: spec.color,
+          fillOpacity: 1,
+          strokeColor: "#222",
+          strokeWeight: 1
+        }
+      });
+      markers.push(marker);
+
+      const info = new google.maps.InfoWindow({
+        content:
+          `<div style="font-size:13px;">
+             <b>${escapeHtml(place.name || spec.title)}</b><br/>
+             <span>${spec.title}</span><br/>
+             <span style="color:#666">${escapeHtml(place.vicinity || "")}</span>
+           </div>`
+      });
+      marker.addListener("click", () => info.open({ anchor: marker, map }));
+    }
+
+    function clearMarkers() {
+      markers.forEach(m => m.setMap(null));
+      markers = [];
+    }
+
+    function escapeHtml(s) {
+      return (s || "").toString()
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+    }
+  </script>
+
+  <!-- Load Google Maps JS (Directions + Places). Replace YOUR_API_KEY_HERE -->
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&libraries=places&callback=initMap">
+  </script>
+</body>
+</html>
