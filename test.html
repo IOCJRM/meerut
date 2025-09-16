@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JRM : Meerut Terminal</title>
+  <link rel="icon" type="image/png" href="favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="favicon/favicon.svg" />
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+
+<body>
+
+<div class="app">
+ 
+    <header class="topbar" >
+      <div class="topbar1">
+        <div class="name">Meerut Terminal · Journey Risk Management</div>
+        <div class="logo"> <img src="logo.gif" style="height:64px"> </div>
+      </div>
+    </header>
+
+    <div class="sidebar" >
+      
+	  <div class="section">
+	  
+        <div class="section__title" style="margin-bottom:8px">Select</div>
+		
+        <div class="field">
+          <label class="label" for="terminal">Despatch Terminal</label>
+          <select id="terminal" class="select" aria-label="Select terminal"></select>
+        </div>
+		
+        <div class="mt-12 field"> <label class="label" for="destination">Destination</label>
+        <input id="destination" class="select" list="destinations" placeholder="Select destination name...">
+         <datalist id="destinations"></datalist>
+        </div>
+		
+        <div class="mt-12">
+          <button class="btn btn--sm" id="btnShow"  title="Show selection"  onclick="loadPage()">Show</button>
+          <button class="btn btn--sm" id="btnClear" title="Clear selection" onclick="clearDestination()">Clear</button>
+        </div>
+		
+      </div>
+	    
+      <div id="qrBox" style="width:100%;height:220px;padding:20px 20px"> Scan Me </div>
+	  <input id="qrTarget" value="https://akmeena257-alt.github.io/TEST1/JRM/103108-SATELLITE EARTH STATION.html" style="width:100%;margin-top:5px">
+	  
+    </div>
+
+ 
+    <main class="main">
+  
+      <section class="card">
+        <div class="card__header">
+          <div class="card__title" style="width:128px">Summary</div>
+        </div>
+        <div class="card__body">
+          <div class="grid cols-5-1-1-1-1-1">
+        
+            <div>
+              <div class="grid cols-5">
+                <div>
+                  <div class="muted" style="font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.06em">Distance</div>
+                  <div id="statDistance" style="font-weight:700; font-size:var(--fs-2xl)">—</div>
+                </div>
+              
+                <div>
+                  <div class="muted" style="font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.06em">Fuel Station</div>
+                  <div id="statStations" style="font-weight:700; font-size:var(--fs-2xl)">—</div>
+                </div>
+				<div>
+                  <div class="muted" style="font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.06em">Hospitals</div>
+                  <div id="statStation2" style="font-weight:700; font-size:var(--fs-2xl)">—</div>
+                </div>
+				<div>
+                  <div class="muted" style="font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.06em">Police Station</div>
+                  <div id="statStation3" style="font-weight:700; font-size:var(--fs-2xl)">—</div>
+                </div>
+				
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+   
+      <section class="card mt-16">
+        <div class="card__header">
+          <div class="card__title">Journey Risk Management - Map View</div>
+        </div>
+        <div class="card__body">
+          <div class="map" id="c2" aria-label="Route map">
+            <object type="text/html" data="JRM/103108-SATELLITE EARTH STATION.html" width="100%" height="100%"></object>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="app1.js"></script>
+  <script src="dist_mapping.js"></script>
+  
+</body>
+</html>
+
+
